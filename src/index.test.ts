@@ -6,7 +6,18 @@ import { memoryAdapter } from 'better-auth/adapters/memory'
 import { eusend, eusendAuthEmails, type EusendPluginOptions, type EusendSendError } from './index'
 import { defaultTemplates, escapeHtml, safeUrl } from './templates'
 
-type Request = { path: string; body: Record<string, any> }
+type SentBody = {
+  to?: string
+  from?: string
+  subject?: string
+  html: string
+  text?: string
+  tags: Record<string, string>
+  track_clicks?: boolean
+  contacts: { email: string; first_name?: string; last_name?: string; properties?: Record<string, string> }[]
+}
+
+type Request = { path: string; body: SentBody }
 
 const realFetch = globalThis.fetch
 let requests: Request[]
@@ -64,7 +75,7 @@ async function signUp(auth: ReturnType<typeof makeAuth>, email = 'ada@example.co
   await settle()
 }
 
-function linkIn(body: Record<string, any>): string {
+function linkIn(body: SentBody): string {
   const match = /href="(http[^"]+)"/.exec(body.html)
   if (!match) throw new Error('no link in email')
   return match[1]!.replace(/&amp;/g, '&')
@@ -151,6 +162,26 @@ describe('auth emails through the plugin', () => {
       { category: 'verification', to: 'ada@example.com', code: 'DOMAIN_NOT_VERIFIED', message: 'Domain not verified' },
     ])
   })
+})
+
+test('a throwing onError still gets the failure logged, not lost', async () => {
+  respond = () => ({ status: 403, body: { error: 'Domain not verified', code: 'DOMAIN_NOT_VERIFIED' } })
+  const logged: unknown[][] = []
+  const realError = console.error
+  console.error = (...args: unknown[]) => logged.push(args)
+  try {
+    await signUp(
+      makeAuth({
+        onError: () => {
+          throw new Error('handler broke')
+        },
+      }),
+    )
+  } finally {
+    console.error = realError
+  }
+
+  expect(logged.some((args) => String(args[0]).includes('DOMAIN_NOT_VERIFIED'))).toBe(true)
 })
 
 describe('contact sync', () => {

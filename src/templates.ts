@@ -58,10 +58,8 @@ export function escapeHtml(value: string): string {
  * is the one mistake that must be impossible rather than unlikely.
  */
 export function safeUrl(value: string): string {
-  try {
-    const url = new URL(value)
-    if (url.protocol === 'https:' || url.protocol === 'http:') return url.toString()
-  } catch {}
+  const url = URL.canParse(value) ? new URL(value) : null
+  if (url && (url.protocol === 'https:' || url.protocol === 'http:')) return url.toString()
   throw new Error(`Refusing to put a non-http(s) URL in an email: ${value}`)
 }
 

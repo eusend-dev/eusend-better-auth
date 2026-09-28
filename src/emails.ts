@@ -79,8 +79,10 @@ export function reportError(options: EusendClientOptions, error: EusendSendError
   if (options.onError) {
     try {
       options.onError(error)
-    } catch {}
-    return
+      return
+    } catch (handlerError) {
+      console.error('[eusend] onError threw while reporting a failure:', handlerError)
+    }
   }
   console.error(`[eusend] ${error.category} for ${error.to} failed: ${error.code} — ${error.message}`)
 }
