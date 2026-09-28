@@ -75,6 +75,16 @@ async function signUp(auth: ReturnType<typeof makeAuth>, email = 'ada@example.co
   await settle()
 }
 
+// `createUser` took only the user before Better Auth 1.7 and takes a provisioning source from
+// 1.7 on. The plugin supports both, so the tests do too — 1.6 ignores the extra argument.
+type CreateUser = (user: Record<string, unknown>, source?: { method: string }) => Promise<{ id: string }>
+
+async function createVerifiedUser(auth: ReturnType<typeof makeAuth>, email: string, name: string) {
+  const ctx = await auth.$context
+  const adapter = ctx.internalAdapter as unknown as { createUser: CreateUser }
+  return adapter.createUser({ email, name, emailVerified: true }, { method: 'admin' })
+}
+
 function linkIn(body: SentBody): string {
   const match = /href="(http[^"]+)"/.exec(body.html)
   if (!match) throw new Error('no link in email')
@@ -222,8 +232,7 @@ describe('contact sync', () => {
 
   test('a user created already verified is synced straight away', async () => {
     const auth = makeAuth({ sync })
-    const ctx = await auth.$context
-    await ctx.internalAdapter.createUser({ email: 'grace@example.com', name: 'Grace', emailVerified: true }, { method: 'admin' })
+    await createVerifiedUser(auth, 'grace@example.com', 'Grace')
     await settle()
 
     expect(syncs()[0]?.contacts).toEqual([{ email: 'grace@example.com', first_name: 'Grace' }])
@@ -231,8 +240,7 @@ describe('contact sync', () => {
 
   test('custom properties ride along', async () => {
     const auth = makeAuth({ sync: { audienceId: 'aud_1', properties: (user) => ({ user_id: user.id }) } })
-    const ctx = await auth.$context
-    const created = await ctx.internalAdapter.createUser({ email: 'grace@example.com', name: 'Grace', emailVerified: true }, { method: 'admin' })
+    const created = await createVerifiedUser(auth, 'grace@example.com', 'Grace')
     await settle()
 
     expect(syncs()[0]?.contacts[0].properties).toEqual({ user_id: created.id })
