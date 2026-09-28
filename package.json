@@ -1,0 +1,59 @@
+{
+  "name": "@eusend_dev/better-auth",
+  "version": "0.1.0",
+  "description": "Better Auth plugin for eusend — verification, password-reset, OTP, magic-link and invitation email from the EU, plus contact sync for verified users.",
+  "author": "Eusend",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eusend-dev/eusend-better-auth.git"
+  },
+  "homepage": "https://eusend.dev/docs/integrations/better-auth",
+  "bugs": "https://github.com/eusend-dev/eusend-better-auth/issues",
+  "keywords": [
+    "better-auth",
+    "better-auth-plugin",
+    "auth",
+    "email",
+    "eusend",
+    "transactional-email",
+    "gdpr"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@eusend_dev/sdk": "^0.18.0"
+  },
+  "peerDependencies": {
+    "better-auth": ">=1.6.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.5.0",
+    "better-auth": "^1.6.23",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.3"
+  }
+}

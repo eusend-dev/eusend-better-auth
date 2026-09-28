@@ -1,0 +1,70 @@
+name: release
+
+# Publishes @eusend_dev/better-auth to npm. Pushing a `v*` tag is the trigger; the tag is
+# made from the eusend monorepo with `bun run sdk:release better-auth patch`, which bumps
+# package.json here before tagging.
+#
+# Uploads use npm Trusted Publishing (OIDC) — no token lives in this repo's secrets. The trust
+# is configured on npmjs.com against this repo AND this filename, so renaming this file breaks
+# publishing until the trusted publisher is updated to match.
+#
+# This repo exists because npm rejects --provenance from a private source repository, and the
+# monorepo is private. Being public also lets Better Auth users read the plugin they install.
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The OIDC token npm exchanges for short-lived publish rights. Without it, npm falls
+      # back to looking for a token and fails.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >= 11.5.1; the npm bundled with Node lags behind it. An
+      # older npm never exchanges the OIDC token and uploads unauthenticated, which the
+      # registry answers with a 404 on an existing package.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      # npm will not let a version be replaced once published, so a tag that disagrees with
+      # package.json has exactly one chance to be caught — here, before the upload.
+      - name: Tag must match the version in package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(node -p "require('./package.json').version")
+
+          if [ "$pkg" != "$tag" ]; then
+            echo "::error::package.json says $pkg, tag says $tag"
+            exit 1
+          fi
+          echo "package.json version $pkg matches tag"
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run typecheck
+
+      - run: bun test
+
+      - run: bun run build
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
